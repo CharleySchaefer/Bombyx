@@ -12,9 +12,9 @@ The development of the software took place at the University of York, UK, and wa
 ## Features
 
 ### ModuliLIB 
-![image](Demos/StickyReptation.png)
+![image](lib/ModuliLIB/Demos/demodata)
 
-Generated using the demo under this ![link](Demos/compile_StickyReptation.sh).
+Generated using the demo under this ![link](lib/ModuliLIB/Demos/compile_StickyReptation.sh).
 The graph shows the relaxation of a linear polymer. The characteristic features are determined by Rouse relaxation at high angular frequencies, dissociation of reversible crosslinks at intermediate frequencies, and polymer reptation at low frequencies.  
 
 
@@ -77,7 +77,7 @@ The typical workflow is detailed in *doc/user_manual.pdf*.
 
 ## Documentation
 
-A user manual can be found in the doc directory.
+A user manual can be found in the [doc directory](doc).
 This demo discusses
 
 * The curve-fit algorithm and the sticky-reptation model.  
