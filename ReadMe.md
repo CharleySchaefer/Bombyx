@@ -12,7 +12,7 @@ The development of the software took place at the University of York, UK, and wa
 ## Features
 
 ### ModuliLIB 
-![image](lib/ModuliLIB/Demos/demodata)
+![image](lib/ModuliLIB/Demos/demodata/StickyReptation.png)
 
 Generated using the demo under this ![link](lib/ModuliLIB/Demos/compile_StickyReptation.sh).
 The graph shows the relaxation of a linear polymer. The characteristic features are determined by Rouse relaxation at high angular frequencies, dissociation of reversible crosslinks at intermediate frequencies, and polymer reptation at low frequencies.  
