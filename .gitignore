@@ -1,0 +1,11 @@
+build
+Build
+Data
+demodata.png
+*test*
+*Test*
+*.eps
+*.log
+*.o
+*.out
+*.pyc

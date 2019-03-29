@@ -1,0 +1,473 @@
+\documentclass[  superscriptaddress]{revtex4} 
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{epstopdf}			% Use eps figures
+\usepackage{color}
+\usepackage{amsmath} % split environment
+\usepackage{mathtools} % multlined environment
+\usepackage{ctable}
+\usepackage{tabularx}
+
+\newcommand*\mycommand[1]{\texttt{\emph{#1}}}
+\newcommand{\kB}{k_\mathrm{B}}
+\newcommand{\kT}{k_\mathrm{B}T}
+
+\newcommand*\shellscript[1]{{
+\boxed{
+  \begin{minipage}[h]{\linewidth}
+    \vspace{0.1 cm}
+    \small
+    \texttt{
+      \hspace{-0.33cm}#1
+      }
+    \vspace{0.15 cm}
+  \end{minipage}
+  }
+}
+}
+
+\begin{document}
+\title[-]
+  {\huge{User Manual for Bombyx 1.0}\bigskip\\ \Large{Modelling of linear viscoelasticity}\bigskip\\ \hphantom{0}}
+
+
+\date{\today}
+
+
+%\begin{abstract}
+%\end{abstract}
+
+\maketitle
+\vfill 
+\begin{center}
+\includegraphics*[width=10cm]{img/Fig_StickyReptation.eps}
+\end{center}
+\vfill 
+\tableofcontents
+%
+%
+
+
+\newpage
+
+\section{Introduction}
+
+Bombyx uses the sticky-reptation model (see Appendix \ref{app:SRmodel}) to calculate the elastic, $G'(\omega)$, and viscous, $G''(\omega)$, modulus as a function of the angular frequency, $\omega$, and fit that to experimental data.
+From this fit, values and standard deviations for the following physical properties are extracted:
+\begin{itemize}
+ \item $\tau_\mathrm{S}$: The effective  sticker-dissociation time.
+ \item $Z_\mathrm{S}$: The effective number of stickers per chain.
+ \item $Z_\mathrm{E}$: The effective number of entanglements per chain.
+ \item $G_\mathrm{E}$: The elasticity modulus.
+ \item $\alpha$: Magnitude of contour-length fluctuations.
+\end{itemize} 
+The physical meaning of these parameters are briefly discussed in Appendix \ref{app:SRmodel}; the emphasis of this manual is on the algorithm of curve fitting, and the workflow of running Bombyx to analyse experimental datasets. 
+
+For successful fitting and error analysis, numerical input setting have to be adjusted by the user of the software.
+Therefore, first some background on the fitting algorithm is given to show where these settings come in play. Next this user manual provides an installation guide, and refers to a demo (runtime: couple of minutes on a regular desktop computer) and the expected output of that demo.
+Finally, a demo of a typical workflow is provided to find the appropriate numerical settings for custom experimental data.
+
+
+\section{Background: Markov Chain Monte Carlo algorithm}
+
+
+
+Extracting the physical parameter values is done using a conventional $\chi^2$ definition of the fit quality, and their standard deviation is determined from the $\chi^2$ landscape as detailed below.
+
+The $\chi^2$ definition is 
+\begin{equation}
+  \chi^2 \equiv \frac{1}{N_\mathrm{dof}}\sum_{i=1}^{N_\mathrm{data}}\frac{(\Delta G'_i)^2}{G'_{\mathrm{fit},i}}+\frac{(\Delta G''_i)^2}{G''_{\mathrm{fit},i}}, 
+\end{equation}
+with the $\Delta G_i$'s the residual between model and experiment for data point $i=1,\,2,\dots,N_\mathrm{data}$ with $N_\mathrm{data}$ the number of data points.
+Further, $N_\mathrm{dof}\equiv N_\mathrm{data}-N_\mathrm{par}$ are the degrees of freedom, with $N_\mathrm{par}$ the number of free fit parameters.
+The parameter values are optimised by minimising $\chi^2$, and their standard deviations are obtained from a sample distribution of the parameter space near this optimum.
+
+Close to the optimum, a quadratic dependence of $\chi^2$ on the fit parameters $p_i$ is assumed, with $i=1,2,\dots,N_\mathrm{par}$, given by 
+\begin{equation}
+  \chi^2 = \chi_\mathrm{best fit}^2 + \frac{\sigma^2}{\sigma_i^2}\sum_{j=1}^{N_\mathrm{par}}(p_j - p_{j,\mathrm{best fit}})^2.
+\end{equation}
+Given a parameter set $\{p\}_j$ with fit quality $\chi_j^2$, a new set $\{p\}_{j+1}$ with fit quality $\chi_{j+1}^2$ is proposed to add to the sample distribution.
+This proposition is accepted if $\chi_{j+1}^2< \chi_{j}^2$, but only accepted with probability $\exp(-(\chi_{j+1}^2-\chi_{j}^2)/2\sigma_{\alpha}^2)$ if otherwise.
+If $\sigma_\mathrm{\alpha}$ equals $\sigma$, this Markov chain generates the distribution
+\begin{equation}
+  P(\chi^2) \propto (\sigma^{2})^{-N_\mathrm{par}/2} \exp\left( -\chi^2/2\sigma^2\right),
+\end{equation}
+from which the mean parameter values and their standard deviations are straight-forwardly extracted.
+
+While it is possible to adapt $\sigma_{\alpha}$ during the sampling algorithm such that it matches $\sigma$, the present sampling method, which resembles umbrella sampling, does not do this.
+Here, $\sigma_\alpha$ is chosen larger than $\sigma$ so that the $\chi^2$ landscape is oversampled. From the resulting distribution, data is then removed with a probability $\exp(-(\chi_{j+1}^2-\chi_{\mathrm{best fit}}^2)/2\sigma_{\beta}^2)$, such that the $\sigma^2$ of the new distribution obeys $\sigma^{-2} = \sigma_\alpha^{-2} + \sigma_\beta^{-2}$.
+
+
+This algorithm generates a sample distribution by performing the steps: 
+\begin{enumerate}
+\item Set $j=1$ and initialise parameter values $\{p\}_j$ and calculate $\chi^2_j$, with $\{p\}_j= \{\tau_{\mathrm{S}},Z_{\mathrm{S}},Z_{\mathrm{E}},G_{\mathrm{E}},\alpha\}_\mathrm{j}$.
+\item Propose new parameter set $\{p\}_{j+1}$ and calculate  $\chi^2_{j+1}$. 
+\item Accept the new parameter set $\{p\}_{j+1}$ if $\chi^2_{j+1}<\chi^2_{j}$ or if a uniform deviate on the unit interval, $u$ is sufficiently small $u<exp(-(\chi^2_{j+1}-\chi^2_{j})/2\sigma_\alpha^2)$; otherwise, the new parameter set is rejected and $\{p_{j+1}\}$ and $\chi^2_{j+1}$ are set to the old values $\{p_{j}\}$ and $\chi^2_{j}$.
+\item $j$ is increased to $j+1$. 
+\item Iterate steps (2-4) until $j$ reaches $N_\mathrm{iter}$.
+\item Calculate $\sigma^2$ of the distribution: if $\sigma_\alpha < \sigma$ sampling has been too local, and sampling has to be repeated with a larger value for $\sigma_\alpha$. If $\sigma_\alpha>\sigma$, samples will be removed using the parameter $\sigma_\beta$ such that $\sigma^{-2}=\sigma_\alpha^{-2}+\sigma_\beta^{-2}$. The algorithm is optimised if only few samples are removed, i.e., $\sigma_\alpha$ is close to $\sigma$; this can be verified in the \emph{bbx\_errordata.out} output file, see Section \ref{sec:output}. 
+\end{enumerate}
+
+
+Even if sampling of the $\chi^2$ landscape near the minimum is succesful (which should be verified by i) the mean $\langle p_{i}\rangle$ drawn from the distribution being sufficiently close to $p_{i,\mathrm{best fit}}$, that is, $(\langle p_{i}\rangle - p_{i,\mathrm{best fit}})^2 < \sigma_i^2$, and ii) the width of the $\chi^2$ distribution, represented by $\sigma^2$ agreeing with the sample distribution), the sample distribution may describe the $\chi^2$ landscape near a local minimum rather than near the global minimum.
+
+In practice, the software performs this algorithm for different initial conditions, which are obtained by global sampling. 
+In this case, initial conditions are randomly sampled from a uniform distribution between lower and upper boundaries that can be estimated from physical arguments.
+
+Summarised, the algorithm is controlled using the lower and upper boundary values of the physical parameters and the numerical settings:
+\begin{itemize}
+ \item $N_\mathrm{seeds}$: The number of initial conditions or seeds.
+ \item $N_\mathrm{iter}$:  The number of Monte Carlo steps per seed
+ \item $\sigma_\mathrm{\alpha}$: Parameter that controls the Monte Carlo acceptance probability.
+ \item $\delta$: Parameter that controls the Monte Carlo step size.
+\end{itemize} 
+
+
+\section{File structure and installation }
+
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics*[width=12cm]{img/FileStructure.eps}
+  \caption{File structure. $\ast$ Prior to installation, the \emph{build} directory and its contents is not present.  }
+  \label{fig:FileStructure}
+\end{figure}
+
+\textbf{Installation} is done by running\\
+\texttt{./buildBombyx.sh}\\
+which created the \emph{build} directory, compiles the libraries in \emph{lib}, compiles postprocessing tools (\emph{.o}) in \emph{utils}, and compiles \emph{Bombyx.o} in \emph{build}.
+(\textbf{NOTE:} software was tested for Linux/Debian (see readme.md); it was not tested on windows, where it is likely required to change the .o extensions  to .exe).
+Further, this script copies the \emph{runBombyx.sh} script from \emph{utils} to \emph{build}.
+
+\textbf{Testing} the software can be done by navigating to the build directory and running the shell script:\\
+\texttt{cd build}\\
+\texttt{./runBombyx.sh -r -p}\\
+Default, this runs a demo curve fit of the data in \emph{Demos/demodata} (in \emph{*.bbx} format), and produces data (in \emph{$\ast$.out}, html, img/$\ast$.png format).
+Running the demo requires a couple of minutes on a regular desktop computer.
+The expected output should be similar to the demo output provided in \emph{Demos/demodata/demodata\_expected\_output}. Fast visual verification can be achieved by viewing the FitReport.html files (e.g., using a browser such as firefox or chrome).  
+
+
+
+\section{Input}
+
+The curve-fitting algorithm is performed by the executable \emph{Bombyx.o} that can be manually run by the user as \\
+\texttt{./Bombyx.o <datafile.bbx> [arguments]} \\
+or (as recommended) using the shell script \emph{runBombyx.sh}. The input parameters to \emph{Bombyx} are defined in the ``USER INPUT'' section of the \emph{runBombyx.sh} file: \\
+\shellscript{
+\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\# \\
+\# USER INPUT \\
+inputfile=``../Demos/demodata/demodata.bbx'' \\
+outfile=``bbx\_errordata.out'' \\
+rseed=-1       \# random number seed. -1: time stamp; >0: user-defined integer \\
+MCseeds=50     \# Number of Monte Carlo seeds \\
+MCiter=1000    \# Number of Monte Carlo iterations per seed \\
+MCdelta=0.2    \# small value -> small step size \\
+MCsigma=0.2    \# small value -> larger acceptance probability \\
+ZeL=4          \# Lower value for number of entanglements \\
+ZeU=30         \# Upper value for number of entanglements \\
+ZsL=1          \# Lower value for number of stickers \\
+ZsU=10         \# Upper value for number of stickers \\
+tauSL=3.5e-3   \# Lower value for sticker lifetime \\
+tauSU=0.25     \# Upper value for sticker lifetime \\
+fL=0.2         \# Lower value for prefactor f: Ge = f * Ge\_estimate \\
+fU=2.0         \# Upper value for prefactor f: Ge = f * Ge\_estimate \\
+alpha=10       \# material parameter \\
+\# END USER INPUT \\
+\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#
+}
+
+ By running \\
+\texttt{./runBombyx.sh -c -r -p} \\
+the software is compiled (\texttt{-c}), run (\texttt{-r}), and the results (consisting of samples of the $\chi^2$ landscape) are postprocessed (\texttt{-p}).
+All possible arguments to the executable are displayed by running \texttt{./Bombyx.o --help} and all possible arguments to the shell script are displayed by running \texttt{./runBombyx.sh --help}.
+Below, the \emph{.bbx} data file and its most important input parameters are discussed. 
+
+
+\subsection{Data file}\label{sec:inputfile}
+
+Example input in a \emph{.bbx} file (taken from \emph{Demos/demodata/demodata.bbx}):
+\shellscript{
+\#DegreeOfPolymerisation:  5525       \# number of monomers per polymer chain \\
+\#MonomerVolume:           0.13e-27   \# in cubic meters \\
+\#VolumeFraction:          0.228      \# occupied by the polymer (in solution)\\
+\#Temperature:             288        \# in Kelvin \\
+\#Frequency:               1          \# 0=``Angular'' or 1=``Hertz''  \\
+\#FirstDataLine:           13         \# Start reading data from this line\\
+\#LastDataLine:            27         \# Last line with data\\
+\#-----------------------\\
+\#omega Gvisc omega Gelas\\
+\#-----------------------\\
+12.537 2636.0 12.537 9748.8\\
+8.878 2875.4 8.878 8933.7\\
+6.287 3131.0 6.287 8287.0
+}
+The physical information `DegreeOfPolymerisation' ($N$), `MonomerVolume' $b$, `VolumeFraction' ($\phi$), `Temperature' ($T$) is used in the program to estimate the elastic modulus 
+\begin{equation}
+  G_\mathrm{e, estimate} = \frac{4}{5}\frac{\phi Z_\mathrm{e}}{b^3N}\kT,
+\end{equation}
+with $Z_\mathrm{e}$ the number of entanglements per chain (which is varies in the fitting algorithm).
+The actual fit value is $G_\mathrm{e, fit} = f G_\mathrm{e, estimate}$, where $f$ is set by the user, see Section \ref{sec:input:phys}. 
+
+
+\subsection{Setting boundaries to physical parameters}\label{sec:input:phys}
+
+
+\begin{table}[h]
+\centering
+\caption{Lower (L) and Upper (U) values of physical parameters.}
+\begin{tabular}{ |c|l|l| } 
+ \hline
+ parameter & function & \emph{Bombyx} argument \\ 
+ \hline
+ $\tau_\mathrm{s}$        & (L) sticker dissociation time        & \texttt{--tauSL   <value>} \\
+                          & (U)                                  & \texttt{--tauSU   <value>} \\
+ $Z_\mathrm{s}$           & (L) number of stickers               & \texttt{--ZsL     <value>} \\ 
+                          & (U)                                  & \texttt{--ZsU     <value>} \\
+ $Z_\mathrm{e}$           & (L) number of entanglements          & \texttt{--ZeL     <value>} \\ 
+                          & (U)                                  & \texttt{--ZeU     <value>} \\
+ $f$                      & (L) elasticity modulus prefactor     & \texttt{--GeL     <value>} \\ 
+                          & (U)                                  & \texttt{--GeU     <value>} \\
+                          & (fixed)                              & \texttt{--Ge-fac  <value>} \\
+ $\alpha$                 & (L) contour-length fluctuations      & \texttt{--alphaL  <value>} \\ 
+                          & (U)                                  & \texttt{--alphaU  <value>} \\ 
+                          & (fixed)                              & \texttt{--alpha   <value>} \\
+ \hline
+\end{tabular}
+\end{table}
+
+
+
+
+Bombyx estimates upper and lower boundary values for $\tau_\mathrm{S}$, $Z_\mathrm{E}$, $Z_\mathrm{S}$ from the data.
+These can be overridden by the user by parsing the arguments \texttt{--tauSL <value>},  \texttt{--tauSU <value>}, \texttt{--ZsL <value>},  \texttt{--ZsU <value>}, \texttt{--ZeL <value>},  \texttt{--ZeU <value>}, \texttt{--alphaL <value>},  \texttt{--alphaU <value>} to the program, for example:\\
+\texttt{./Bombyx.o datafile.bbx --tauSL 1e-4 --tauSU 1e-2}\\
+Parameter values can be fixed by setting the lower and upper boundaries to the same value.
+In case of the parameter $\alpha$, the value can also be fixed using the argument \texttt{--alpha <value>}. 
+
+The parameter  $G_\mathrm{e}$ is estimated by Bombyx using the relation between the number density of entanglements ($\rho$) and the thermal energy via $G_\mathrm{e} \propto \rho \kT$ (see previous section). 
+The prefactor is estimated using the degree of polymerisation, monomer volume, volume fraction and the temperature, which are defined in the data file (see previous section).
+Variations from the estimated modulus ($G_\mathrm{e,fit} = f G_\mathrm{e,estimated}$) can be allowed in the fit using the arguments \texttt{--GeL <value>},  \texttt{--GeU <value>}. These values give the upper and lower bounds of the factor $f$ and \emph{not} of the modulus itself. 
+
+
+
+\subsection{Setting numerical parameters} \label{sec:input:num}
+
+
+\begin{table}[h]
+\centering
+\caption{Numerical program settings.}
+\begin{tabular}{ |c|l|l| } 
+ \hline
+ parameter & function & \emph{Bombyx} argument \\ 
+ \hline
+ -                        & random number seed                   & \texttt{--rseed   <value>} \\
+ $N_\mathrm{seeds}$       & number of initial conditions / seeds & \texttt{--MCseeds <value>} \\ 
+ $N_\mathrm{iter}$        & number of Monte Carlo steps per seed & \texttt{--MCiter  <value>} \\ 
+ $\delta$                 & Monte Carlo step size                & \texttt{--MCdelta <value>} \\ 
+ $\sigma_\mathrm{\alpha}$ & Controls the acceptance probability  & \texttt{--MCsigma <value>} \\ 
+ \hline
+\end{tabular}
+\end{table}
+
+
+
+
+The algorithm makes use of a random-number generator, which is default seeded using the same integer value. This value may be overridden using \texttt{--rseed} and the number of seeds using \texttt{--MCseeds}\\
+\shellscript{
+ ./Bombyx.o <file> --rseed <val>  --MCseeds <val>
+}
+The value for \texttt{--rseed} should be a positive integer to set to a fixed value, or $-1$ to use the computers clock / time stamp to initialise the random number.
+The value for \texttt{--MCseeds} should be a positive integer, typically with a value $5-100$.
+
+New parameters in step $i+1$ of the algorithm are proposed (step 2 of the MC algorithm) randomly uniform from the interval
+\begin{equation}
+  \max\{p_{i}(1-\delta), p_{i,\mathrm{L}} \} \leq p_{i+1} \leq \min\{p_{i}(1+\delta), p_{i,\mathrm{U}} \}
+\end{equation}
+The step size, or the width of the interval, is controlled by the parameter $\delta<1$,
+For large step sizes ($\delta \approx 1$), the proposed parameter values are independent of the previous values, and the process is $\chi^2$ landscape is sampled randomly.
+For small step sizes ($\delta \approx 0$), the parameter values are likely to get trapped in a local minimum.
+
+The value at which efficient sampling is achieved depends on the acceptance probability of the new parameter values.
+This probability is
+\begin{equation}
+  P = \min\left\{1, \exp\left(-\frac{\chi^2_\mathrm{new} - \chi^2_\mathrm{old}}{\sigma_\alpha}\right)\right\},
+\end{equation}
+which is controlled by $\sigma_\alpha>\sigma$, with $\sigma$ the standard deviation of the $\chi^2$ distribution (see algorithm section).
+For large $\sigma_\alpha$, the acceptance probability is high, and a large portion of the parameter space can be explored. For a small value, algorithm may get stuck in local minima of the parameter space.
+
+
+\section{Output} \label{sec:output}
+
+After running the program, output is generated in 
+\begin{itemize}
+ \item \emph{bbx\_convergence.out}: contains all accepted data generated using $\sigma_\alpha$ (see algorithm section).
+ \item \emph{bbx\_convergence\_filtered.out}: contains all data after filtering the data using  $\sigma_\beta$ (see algorithm section). This data is used to calculate the mean and standard deviation of the physical parameters. 
+ \item \emph{bbx\_errordata.out}: contains the parameter values and their error analysis, including the mean and standard deviation, but also the $\sigma$, $\sigma_\alpha$, and $\sigma_\beta$ (``\texttt{chi\_std\_a}'', ``\texttt{chi\_std\_b}'', ``\texttt{chi\_std}'') values that control the efficiency of the algorithm. If \emph{runBombyx.sh} is run in postprocessing mode, \emph{bbx\_errordata.out} will contain the Pearson correlation matrix, and minimum, first quartile, median, third quartile and maximum parameter values for box-and-whisker plots.
+ \item \emph{bbx\_model.out}: contains the fitted $G'$, $G''$ model.
+ \item \emph{img}: contains graphs in png format, generated by postprocessing setting of \emph{runBombyx.sh} using the gnuplot scripts in \emph{utils}. These include the curve fit of the model to experiment, convergence plots, histograms, and box-and-whisker plots.
+ \item \emph{FitReport.html}: displays the figures in \emph{img} with commentary.
+\end{itemize}
+
+
+
+\newpage
+
+\section{Demo}
+\subsection{Introduction}
+
+To extract the values of $Z_\mathrm{s}$ and $Z_\mathrm{e}$, $\tau_\mathrm{s}$, $G_\mathrm{e}$, and $\alpha$ from experimental data (symbols in Figure \ref{fig:SRfit}), it is necessary to set upper and lower values and/or fix parameter values, set the number of iterations and set values for the numerical parameters $\delta$ and $\sigma_\alpha$. 
+As demonstrated below, in practice one starts fitting globally with broad parameter ranges to find the appropriate numerical parameters and to identify local minima.
+Then, the local minima can be inspected individually (using the fitting algorithm with different numerical settings).
+Running the program to reproduce the data in this demo can be done in less than $10$ minutes on a regular desktop computer.
+Before discussing this procedure, correct installation and presence of ``demo files'' should be checked.
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics*[width=8cm]{../Demos/demodata/img/StickyReptation.png}
+  \caption{Viscous and elastic moduli, $G'$ and $G''$, as a function of the angular frequency $\omega$. The experimental data (symbols) are given in \emph{Demo/demodata}, and the lines are obtained by curve fitting using \emph{Bombyx}.  }
+  \label{fig:SRfit}
+\end{figure}
+
+
+The software should be installed manually or using the shell script \emph{buildBombyx.sh} (see \emph{readme.md}). 
+After succesful installation, there should be a \emph{build} directory that contains the script \emph{runBombyx.sh} and the executable \emph{Bombyx.o} for running the curve fit, and there should be a \emph{utils} directory that contains the executable \emph{ColumnStats.o} for postprocessing.
+The demo presented in this section uses the content of the \emph{Demos/demodata} directory.
+The raw experimental data is provided in \emph{demodata.bbx} in that directory (see Section \ref{sec:inputfile}), and example output after fitting that data is given in the four \emph{FitReport\_x\_xxx.pdf} files that will be referred to in the remainder of this section.
+
+
+
+\subsection{Exploring the parameter space and identifying local minima}
+The first step to do when fitting the SR model to experiment (see Figure \ref{fig:SRfit}) is to estimate the parameter values and assign lower and upper values for these.
+The experimental data (symbols) in Figure \ref{fig:SRfit} show a roll off of the viscous modulus, $G''$, at an angular frequency of approximately $40$ rad/s, which roughly gives a sticker dissociation time of $\tau_\mathrm{s} \approx 0.025$ seconds.
+The number of stickers and entanglements may be estimated using the terminal relaxation time, which is approximately $0.3$ s, as estimated from the frequency $3$ rad/s where $G'=G''$.
+From the two time scales, it follows that the width of the non-sticky rubber plateau is $\ln\left(\alpha Z_\mathrm{e}Z_\mathrm{s}^2\right) \approx 10$, giving (if $Z_\mathrm{e}=Z_\mathrm{s}$) approximately $13$ stickers and/or entanglements per chain if $\alpha=10$.
+The final parameter is $G_\mathrm{e}$, which is estimated by \emph{Bombyx} from $G_\mathrm{e} \propto \kT Z_\mathrm{e}$, with the proportionality factor calculated from the physical properties (molecular volume, degree of polymerisation, volume fraction) in \emph{Demo/demodata}.
+Summarised, it seems reasonable to set as physical boundaries  $Z_\mathrm{e} \in [1,\,30]$, $Z_\mathrm{s} \in [1,\,30]$, $\tau_\mathrm{s}=[0.0025,\, 0.25]$ and $f=[0.2,\,5]$, with $f$ a prefactor to the estimate of $G_\mathrm{e}$.
+These parameters are set in the \emph{runBombyx.sh} file, which runs \emph{Bombyx.o} with the  arguments ``\texttt{--alpha 10 --ZeL 1 --ZeU 30 --ZsL 1 --ZsU 30 --tauSL 2.5e-3 --tauSU 0.25 --GeL 0.2 --GeU 5}''.
+
+
+%#Filtered data: 
+%#Ndata              = 33895
+%#chibest            = 0.000863
+%#chi_std_a          = 0.282843
+%#chi_std_b          = 5.100172e-01
+%#chi_std            = 2.540926e-01
+%#(1/va+1/vb)^(-1/2) = 2.473519e-01
+
+
+
+
+
+
+
+Exploration of the parameter space is controlled by the number of initial parameter sets, the number of Monte Carlo (MC) steps per initial condition, $N_\mathrm{iter}$, the step size $\delta$ and the parameter to set the acceptance probability $\sigma_\alpha$.
+These parameters are set in the \emph{runBombyx.sh} file, which runs \emph{Bombyx} with the arguments ``\texttt{--Nseeds 50 --MCiter 100 --MCsigma 0.2 --MCdelta 0.4}''.
+Running the algorithm takes about a minute of runtime, and is done by running \texttt{./runBombyx.sh -r -p}, which calls  \texttt{./Bombyx.o ../Demos/demodata/demodata\_15\_2.bbx --alpha 10 --ZeL 1 --ZeU 30 --ZsL 1 --ZsU 30 --tauSL 2.5e-3 --tauSU 0.25 --GeL 0.2 --GeU 5 --Nseeds 50 --MCiter 100 --MCsigma 0.2 --MCdelta 0.4}
+ Figure \ref{fig:Chi2scape} shows the exploration of the parameter space (in the \emph{img} directory and in the \emph{FitReport.sh} file) for $\delta =0.05$ and for for $\delta =0.4$: For small $\delta$, the parameters get stuck in local minima, while for large $\delta$ the parameter space is explored more efficiently. A similar result would be seen by varying the value of $\sigma_\alpha$.
+
+The choice for $\sigma_\alpha$ can be reviewed in the output in \emph{bbx\_errordata.out}, in lines alike\\
+\texttt{\#Filtered data: }\\
+\texttt{\#Ndata              = 33895}\\
+\texttt{\#chibest            = 0.000863}\\
+\texttt{\#chi\_std\_a          = 0.282843}\\
+\texttt{\#chi\_std\_b          = 5.100172e-01}\\
+\texttt{\#chi\_std            = 2.540926e-01}\\
+\texttt{\#(1/va+1/vb)\^(-1/2) = 2.473519e-01}\\
+Here, `chi\_std\_a' represents the input value $\sigma_\alpha$, `chi\_std\_b' represents $\sigma_\beta$ which is found by the program to match, within $10\%$, `chi\_std' (representing $\sigma$) to (1/va+1/vb)\^(-1/2) (representing $sqrt\left(\sigma_\alpha^{-2} + \sigma_\beta^{-2}\right)$) (see algorithm section of this manual).
+The value `chi\_std\_a' should be larger than that of `chi\_std'. If it is much larger, then $\sigma_\alpha$ may be lowered to improve the efficiency of sampling the parameter space.
+
+
+
+\begin{figure}
+  \centering
+  \includegraphics*[width=6cm]{../Demos/demodata/img/Chi2Landscape_0p2_0p05.png}
+  \includegraphics*[width=6cm]{../Demos/demodata/img/Chi2Landscape_0p2_0p2.png}
+  \caption{Explored parameter space for $50$ seeds after $100$ iterations each, for $\sigma_\alpha=0.2$ and $\delta=0.05$ (left) and $\delta=0.5$ (right).}
+  \label{fig:Chi2scape}
+\end{figure}
+
+For $\delta=0.4$, Figure \ref{fig:delta0p4} shows a bimodal distribution for the sticker dissociation time (left). The first peak is at times smaller than actually assessed experimentally in Figure \ref{fig:SRfit}, and has a numerical origin: To exclude this local minimum, the fitting procedure should be rerun with as lower boundary of $\tau_\mathrm{S}$ set to 0.0065 (which is still smaller than the smallest time experimentally available, guaranteeing a sufficiently broad interval).  
+The right panel of Figure \ref{fig:delta0p4} shows the convergence of the elasticity modulus.
+The converged values are typically lower than the initial value.
+For the rerun of the fit the upper value of the prefactor is therefore set from $5$ to $2$.
+
+
+
+\begin{figure}
+  \centering
+  \includegraphics*[width=6cm]{../Demos/demodata/img/tauS_0p2_0p05.png}
+  \includegraphics*[width=6cm]{../Demos/demodata/img/GE_0p2_0p05.png}
+  \caption{Explored parameter space for $50$ seeds after $100$ iterations each, for $\sigma=0.2$ and $\delta=0.05$ (left) and $\delta=0.5$ (right).}
+  \label{fig:delta0p4}
+\end{figure}
+
+
+\subsection{Finding and characterising the global minimum}
+
+After rerunning the algorithm with the adapted (see \emph{Demos/demodata/FitReport\_1\_global.pdf}), the elasticity modulus $G_\mathrm{e}$ remains to have a bimodal distribution, while $Z_\mathrm{s}$ and $Z_\mathrm{e}$ have scewed distributions. The value of $G_\mathrm{e}$ is correlated with $Z_\mathrm{e}$ and anticorrelated with $Z_\mathrm{s}$ (can be concluded from the Pearson correlation coefficients in \emph{bbx\_errordata.out}, which is produced after running \emph{runBombyx.sh} in postprocessing mode).
+Indeed, the right panel of Figure \ref{fig:delta0p4} displays two local minima with high $Z_\mathrm{s}$ and low $Z_\mathrm{e}, G_\mathrm{e}$ and with low $Z_\mathrm{s}$ and high $Z_\mathrm{e}, G_\mathrm{e}$.
+The separation of these minima is at $Z_\mathrm{e}\approx 4$ and $Z_\mathrm{s}\approx 10$, which can now be inspected separately by setting the boundaries appropriately.
+
+The fit reports \emph{Demos/demodata/FitReport\_2\_local\_minimum\_1.pdf} and \emph{Demos/demodata/FitReport\_3\_local\ \_minimum\_2.pdf} are produced by rerunning the software with as boundary conditions $\left\{Z_\mathrm{e} \in [1,\, 4], Z_\mathrm{s} \in [10,\, 30]\right\}$ and $\left\{Z_\mathrm{e} \in [4,\, 30], Z_\mathrm{s} \in [1,\, 10]\right\}$, respectively.
+Further, for both runs the prefactor to $G_\mathrm{e}$ was set $f \in [0.2,\, 2]$ and $\tau_\mathrm{s} \in [0.0065, 0.25]$, and all other settings were kept the same as in the previous section.
+From the fit quality in both data sets, it was concluded that the first data set (for $\left\{Z_\mathrm{e} \in [1,\, 4], Z_\mathrm{s} \in [10,\, 30]\right\}$) represented a local minimum and the second dataset (for $\left\{Z_\mathrm{e} \in [4,\, 30], Z_\mathrm{s} \in [1,\, 10]\right\}$) represented a global minimum.
+
+This curve fit was now rerun, but to improve the statistics it was run with $1000$ Monte Carlo steps per seed instead of $100$. The results are summarised in \emph{Demos/demodata/FitReport\_4\_final.pdf}.
+The $\chi^2$ landscape plot suggests only the vicinity of a single (global) minimum is sampled.
+This parameter space is not ellipsoidal due to the cross correlations between the parameters.
+While the $G_\mathrm{e}$ distribution is close to Gaussian, the distributions of the other parameters are skewed.
+Despite the skewness, comparison of the box-and-whisker plots with the mean and standard deviation show acceptable agreement between the median and mean well within the standard deviation, see Figure \ref{fig:skewed}.  
+
+\begin{figure}
+  \centering
+  \includegraphics*[width=6cm]{../Demos/demodata/img/hist_ZS.png}
+  \includegraphics*[width=6cm]{../Demos/demodata/img/stats_ZS.png}
+  \caption{Analysis of number of stickers, $Z_\mathrm{S}$. Left: skewed distribution from sampling (bars) compared to Gaussian distribution (line). Right: Box-and-whisker plot (red) with median (black) compared to mean and standard deviation (blue).}
+  \label{fig:skewed}
+\end{figure}
+
+
+
+
+\section{Appendix: Sticky-reptation model}\label{app:SRmodel}
+
+
+To calculate the relaxation modulus $G(t)$, the SR model \cite{Leibler91} extends the usual description of linear entangled polymers \cite{McLeish02} with a description for stickers.
+That is, $G(t)$ is composed of Rouse relaxation of monomers along the backbone of a bead-spring chain, and of relaxation by the constraint release of $Z_\mathrm{e}$ topological entanglements via polymer reptation in a tube-like confinement.
+The stickers are represented by sticky monomers of which a number $Z_\mathrm{s}$ per chain actually forms a bridge. 
+These stickers hinder Rouse relaxation for wavelengths longer than the strand between stickers.
+For those long-wavelength modes, the relaxation modulus is
+\begin{equation}
+  G_\mathrm{SR}(t) =  \frac{G_\mathrm{e}}{Z_\mathrm{e}} \sum_{q=1}^{Z_\mathrm{s}}
+\kappa \exp\left( -\frac{t q^2}{\tau_\mathrm{s}Z_\mathrm{s}^2} \right),
+\end{equation}
+where the coefficient $\kappa$ equals unity for modes with a wavelength shorter than the entanglement strand (i.e., for wavenumbers $q\geq Z_\mathrm{e}$) and equals $1/5$ for longer wavelengths (i.e., for wavenumbers $q<Z_\mathrm{e}$) \cite{Likhtman02}.
+
+Under the assumption that the Rouse relaxation of short wavelengths is much faster than the dissociation of stickers (i.e., $\tau_\mathrm{s} \gg \tau_0 (N/Z_\mathrm{S})^2$, (i) $\tau_\mathrm{s}$ is discernible from early-stage relaxations as a maximum in $G''$, and (ii) the time scale of `sticky-reptation' at which the chain escapes the tube-like confinement is  $\tau_\mathrm{rep}=\tau_\mathrm{s}Z_\mathrm{e}Z_\mathrm{s}^{2}$ \cite{Leibler91}.
+Following Chen et al. \cite{ChenQ16, ZhangZ18}, the curvilinear motion of the sticky polymer in the tube is described using the double-reptation model \cite{desCloizeaux88} 
+\begin{equation}
+  G_{\mathrm{rep}}(t) = G_\mathrm{e}\left(\frac{8}{\pi^2}\sum_{\mathrm{odd}\,q}\frac{1}{q^2}\exp(-q^2 U(t))\right)^2,
+  \label{eq:DoubleReptation}
+\end{equation}
+with 
+\begin{equation}
+  U(t) = \frac{t}{\tau_\mathrm{rep}}+\frac{\alpha}{Z_\mathrm{e}}g\left( \frac{Z_\mathrm{e}}{\alpha}\frac{t}{ \tau_\mathrm{rep} } \right),
+\end{equation}
+and with $g(x)=\sum_{m=1}^{\infty}m^{-2}[1-\exp(-m^2 x)]$ a function that captures approximately the modification to reptation entanglement loss arising from contour-length fluctuations.
+In this model, $\alpha$ should in principle equal a universal constant value, but is in practice found to increase with a decreasing number of entanglements per chain \cite{Ruymbeke02}, which may potentially be corrected for using a more sophisticated description for contour-length fluctuations \cite{Likhtman02}.
+The parameter $\alpha$ predominantly affects the terminal relaxation time as $\tau_\mathrm{d}=\tau_\mathrm{rep}/\alpha$ for $\alpha \gg 1$. Transformation of $G(t)$ from the time to the frequency domain is numerically achieved using the Finite Element Analysis detailed in Ref. \cite{Nobile01}.
+
+
+\bibliography{references}
+
+
+\end{document}
+
+
+
+
+
+
