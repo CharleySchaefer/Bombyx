@@ -10,6 +10,8 @@
 
 
 
+  #include "../../ZiltoidLIB/ZiltoidLIB.h"
+  //#include "../NobileFEA/NobileFEA.h"
   #include "../ModuliLIB.h"
 
   double PlateauModulus(double, int, double, double, double);

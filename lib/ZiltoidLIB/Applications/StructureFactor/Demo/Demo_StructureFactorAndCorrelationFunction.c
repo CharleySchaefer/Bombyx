@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
       fname = argv[i+1];
       if( access( fname, F_OK ) == -1 ) 
       {
-        printf("Error: File \'%s\' does not exist!\n"); return(0);
+        printf("Error: File \'%s\' does not exist!\n", fname); return(0);
       }
       i += 2;
     }else if( strcmp( arg, "--stretch-matrix" ) == 0 ){

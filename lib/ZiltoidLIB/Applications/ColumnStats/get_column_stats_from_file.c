@@ -30,10 +30,10 @@ int main(int argc, char *argv[])
     const char *arg = argv[i];
    
     if( strcmp( arg, "--file" ) == 0 ){
-      sprintf(fname, argv[i+1]);
+      sprintf(fname, "%s", argv[i+1]);
       if( access( fname, F_OK ) == -1 ) 
       {
-        printf("Error: File \'%s\' does not exist!\n"); return(0);
+        printf("Error: File \'%s\' does not exist!\n", fname); return(0);
       }
       i += 2;
     }else if( strcmp( arg, "--verbose" ) == 0 ){

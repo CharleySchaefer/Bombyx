@@ -115,7 +115,7 @@ int countColumns(char *fname, int atline, int *Ncols)
 
   // Read words in the line till end of line has been reached
   if( !countWords(line, word, &(*Ncols)) )
-    {printf("\nError: Failed to execute countWords()!\n\n", fname); return(0);}
+    {printf("\nError: Failed to execute countWords()!\n"); return(0);}
 
   // Close file
   fclose(ifp);
@@ -671,7 +671,7 @@ int count_occurences_of_word_in_file_column(char *fname, char *word, int col, ch
     {printf("Error: \"col\" should be a positive integer.\n"); return(-1);}
 
   if( (ifp = fopen(fname, "r")) == NULL)
-    {printf("\nError: fopen() failed.\n", fname);return(-1);}
+    {printf("\nError: fopen() failed.\n");return(-1);}
 
   while( fgets( line, max_line_width*sizeof(char), ifp) != NULL)
   {

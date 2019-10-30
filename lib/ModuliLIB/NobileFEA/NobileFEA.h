@@ -18,6 +18,7 @@
   double H1func(double *, double, int, int);
   double H2func(double *, double, int, int);
 
+  void NobileFEA(double *, double *, int, double, double *, double *);
 
 
 #endif

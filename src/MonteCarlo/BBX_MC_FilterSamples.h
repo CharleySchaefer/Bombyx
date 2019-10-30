@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "../../lib/ZiltoidLIB/ZiltoidLIB.h"
 int analyse_bbx_convergence_file(char *, double, double, int, int);
 
 
