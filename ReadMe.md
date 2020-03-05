@@ -29,6 +29,7 @@ The graph shows the relaxation of a linear polymer. The characteristic features 
 
 ### Utilities
 
+* Matlab (gnu Octave) version of the SR model  
 * FitReport.html file for a visual summary of the results  
 * Gnuplot scripts for graphical output.  
 * runBombyx.sh to compile and run software, as well as to call postprocessing scripts  
