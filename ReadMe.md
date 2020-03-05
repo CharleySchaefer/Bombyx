@@ -1,11 +1,14 @@
 
-# Bombyx: Modelling of linear viscoelasticity
+# Bombyx: Modelling of B. Mori Silk Rheology
 
 
 
 ## About
 
-Bombyx is specifically developed to compare the sticky-reptation model to experimental rheology data using Monte Carlo curve fitting. For rheological software with a broader scope, see ![RepTate](https://github.com/jorge-ramirez-upm/RepTate).
+Bombyx is specifically developed to compare the sticky-reptation model to experimental rheology data using Monte Carlo curve fitting. 
+This software is written in C.
+A matlab/gnu octave version of the SR model (without the curve-fitting algorithm) is available in [utils](utils) and a python version with a Graphical User Interface is available 
+in ![RepTate](https://github.com/jorge-ramirez-upm/RepTate).
 
 The development of the software took place at the University of York, UK, and was funded by the EPSRC under grant number EP/N031431/1. The software is freely distributed under the GNU General Public License Version 3 (2007); see LICENSE.txt. 
 
