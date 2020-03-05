@@ -134,10 +134,10 @@ The sticky-reptation model itself depends on a number of functionalities that ca
 
 
 **Future features**:  
-* Program version is defined in src/main.h.  
+* Implement Evans-Tassieri algorithm for Fourier transform (now only in utils/Matlab).  
+* Input data: 3 data columns instead of 4 (currently duplicate frequency column.  
+* Input data: accept tab-separated columns.  
 * Display key results of *bbx_errordata.out* in *FitResults.html*.  
-
- 
 
 
 
