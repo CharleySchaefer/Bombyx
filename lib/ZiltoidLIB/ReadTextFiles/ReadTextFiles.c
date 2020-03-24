@@ -247,9 +247,8 @@ int dreadColumn(char *fname, int Ndata, int Nheader, int Ncol, double *col)
   char line[MAX_LINE_WIDTH];
   FILE *ifp;
 
-  if(Ncol<0)
-  {
-    printf("WARNING: algorithm starts reading data at Ncol=0!\n");
+  if(Ncol<0) {
+    printf("Warning: algorithm starts reading data at Ncol=0!\n");
     return(0);
   }
   if((ifp = fopen(fname, "r")) == NULL){printf("Error: Failed to open \'%s\'!\n", fname); return(0);}
@@ -269,29 +268,29 @@ int dreadColumn(char *fname, int Ndata, int Nheader, int Ncol, double *col)
     // Skip white space before first column
 
     // Find position of first column in the line
-    if((c=line[j])==' ') // Read line until space is found (column delimiter)
+    if( ((c=line[j])==' ') || (c=='\t')) // Read line until space is found
     {
-      while( (c=line[j]) != '\0' & c != '\n' & c != ' ')
+      while( (c=line[j]) != '\0' & c != '\n' & c != ' ' & c != '\t')
         j++;
 
       // Read line until end of space
-      while( (c=line[j]) == ' ' & c != '\0' & c != '\n')
+      while( ((c=line[j])== ' ' | c == '\t')  & c != '\0' & c != '\n')
         j++;
     }
 
     // start reading columns
-    while( countCol<Ncol & (c=line[j]) != '\0' & c != '\n' )
+    while( countCol<Ncol & (c=line[j]) != '\0' & c != '\n' ) /* end of line */
     {
       // Read line until space is found
-      while( (c=line[j]) != '\0' & c != '\n' & c != ' ')
+      while( (c=line[j]) != '\0' & c != '\n' & c != ' ' & c != '\t')
         j++;
 
-      // Read line until end of space
-      while( (c=line[j]) == ' ' & c != '\0' & c != '\n')
+      // Read line until end of space or end of line
+      while( ((c=line[j]) == ' ' | c == '\t') & c != '\0' & c != '\n')
         j++;
 
       // If character after space is not the end of the line a column is found
-      if( (c=line[j]) != ' ' & c != '\0' & c != '\n')
+      if( (c=line[j]) != ' ' & c != '\t' & c != '\0' & c != '\n')
         countCol++;
     }
     col[i+1-Nheader] = atof(line+j); // Read column entry 
