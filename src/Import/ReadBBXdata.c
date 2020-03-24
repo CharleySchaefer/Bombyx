@@ -115,7 +115,7 @@ int readinput(char *inputfile, INPUT **Set_p, int verbose)
   Set->w2=(double*)malloc(Set->Ndata*sizeof(double));
   Set->Gvisc=(double*)malloc(Set->Ndata*sizeof(double));
 
-  // TODO: HEADER RECOGNISION
+  // TODO: HEADER RECOGNITION
   if(verbose)
   {
     printf("Finished allocating memory.\n");
