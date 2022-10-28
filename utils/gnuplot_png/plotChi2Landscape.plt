@@ -1,7 +1,11 @@
 set terminal pngcairo enhanced dashed
 set output "img/Chi2Landscape.png"
 
-
+# INPUT DATA COLUMNS:
+#     Index ChiSquare Param1 Param2 Param3
+#     
+#  x,y,z axes are given by Param1, Param2 and Param3
+#   colorscale is given by ChiSquare
 
 
 
